@@ -1,7 +1,6 @@
-import { useState, useRef } from "react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+import { useState } from "react";
 import { generatePuzzle, toArabicNumeral, type PuzzleState } from "@/lib/puzzle-engine";
+import { exportPng, exportPdf } from "@/lib/export-canvas";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,9 +29,6 @@ function App() {
     showSolution: false,
   });
 
-  const puzzleRef = useRef<HTMLDivElement>(null);
-  const solutionRef = useRef<HTMLDivElement>(null);
-
   const handleGenerate = () => {
     const { size, words, secretWord } = gameState.formValues;
     const wordsList = words.split(/[,،]/).map(w => w.trim()).filter(w => w.length > 0);
@@ -50,31 +46,6 @@ function App() {
     setGameState(prev => ({ ...prev, puzzle: null }));
   };
 
-  const exportPng = async (element: HTMLElement | null, filename: string) => {
-    if (!element) return;
-    const canvas = await html2canvas(element, { useCORS: true, scale: 2 });
-    const link = document.createElement("a");
-    link.download = filename;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  };
-
-  const exportPdf = async () => {
-    if (!puzzleRef.current || !solutionRef.current) return;
-    
-    const c1 = await html2canvas(puzzleRef.current, { scale: 2 });
-    const c2 = await html2canvas(solutionRef.current, { scale: 2 });
-    
-    const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: "a4" });
-    const w = pdf.internal.pageSize.getWidth();
-    const h1 = (c1.height / c1.width) * w;
-    const h2 = (c2.height / c2.width) * w;
-    
-    pdf.addImage(c1.toDataURL("image/png"), "PNG", 0, 0, w, h1);
-    pdf.addPage();
-    pdf.addImage(c2.toDataURL("image/png"), "PNG", 0, 0, w, h2);
-    pdf.save(`لغز-${gameState.formValues.title.trim().replace(/\s+/g, '-')}.pdf`);
-  };
 
   const isSecretPosition = (r: number, c: number, puzzle: PuzzleState) => {
     return puzzle.secretPositions.some(([pr, pc]) => pr === r && pc === c);
@@ -105,10 +76,9 @@ function App() {
     </div>
   );
 
-  const renderPrintableView = (puzzle: PuzzleState, isSolution: boolean, ref: React.RefObject<HTMLDivElement>) => (
+  const renderPrintableView = (puzzle: PuzzleState, isSolution: boolean) => (
     <div 
-      ref={ref} 
-      className={`bg-white p-8 rounded-xl ${isSolution && !gameState.showSolution ? 'absolute -top-[9999px] -left-[9999px] opacity-0' : ''}`}
+      className="bg-white p-8 rounded-xl"
       style={{ width: '800px', maxWidth: '100%', margin: '0 auto' }}
       dir="rtl"
     >
@@ -259,44 +229,34 @@ function App() {
             )}
 
             <div className="relative border-4 border-border rounded-2xl overflow-hidden bg-muted/10 shadow-lg">
-              {/* Only show the active view visually, but render both for export */}
-              <div className={gameState.showSolution ? 'hidden' : 'block'}>
-                {renderPrintableView(gameState.puzzle, false, puzzleRef)}
-              </div>
-              <div className={gameState.showSolution ? 'block' : 'hidden'}>
-                {renderPrintableView(gameState.puzzle, true, solutionRef)}
-              </div>
-              {/* Ensure both refs exist even when not visually shown for html2canvas */}
-              {!gameState.showSolution && (
-                 renderPrintableView(gameState.puzzle, true, solutionRef)
-              )}
+              {renderPrintableView(gameState.puzzle, gameState.showSolution)}
             </div>
 
             <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8">
-              <Button 
-                variant="outline" 
-                size="lg" 
+              <Button
+                variant="outline"
+                size="lg"
                 className="gap-2 font-bold shadow-sm h-14"
-                onClick={() => exportPng(puzzleRef.current, `لغز-${gameState.formValues.title.trim().replace(/\s+/g, '-')}.png`)}
+                onClick={() => exportPng(gameState.puzzle!, gameState.formValues.title, false, `لغز-${gameState.formValues.title.trim().replace(/\s+/g, '-')}.png`)}
                 data-testid="button-export-png"
               >
                 <ImageDown className="w-5 h-5" />
                 تحميل PNG
               </Button>
-              <Button 
-                variant="outline" 
-                size="lg" 
+              <Button
+                variant="outline"
+                size="lg"
                 className="gap-2 font-bold shadow-sm h-14"
-                onClick={() => exportPng(solutionRef.current, `حل-لغز-${gameState.formValues.title.trim().replace(/\s+/g, '-')}.png`)}
+                onClick={() => exportPng(gameState.puzzle!, gameState.formValues.title, true, `حل-لغز-${gameState.formValues.title.trim().replace(/\s+/g, '-')}.png`)}
                 data-testid="button-export-solution-png"
               >
                 <ImageDown className="w-5 h-5 text-secondary-foreground" />
                 تحميل الحل PNG
               </Button>
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="gap-2 font-bold shadow-md h-14"
-                onClick={exportPdf}
+                onClick={() => exportPdf(gameState.puzzle!, gameState.formValues.title)}
                 data-testid="button-export-pdf"
               >
                 <FileDown className="w-5 h-5" />
