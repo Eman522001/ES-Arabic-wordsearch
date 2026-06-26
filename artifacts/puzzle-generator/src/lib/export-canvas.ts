@@ -148,17 +148,38 @@ function drawPuzzle(
     }
   }
 
+  if (showSolution && puzzle.secretPositions.length > 0) {
+    ctx.strokeStyle = "#64748b";
+    ctx.lineWidth = 1.5;
+    for (const [r, c] of puzzle.secretPositions) {
+      const cx = MARGIN + c * CELL + CELL / 2;
+      const cy = gridTop + r * CELL + CELL / 2;
+      const halfW = CELL * 0.34;
+      ctx.beginPath();
+      ctx.moveTo(cx - halfW, cy);
+      ctx.lineTo(cx + halfW, cy);
+      ctx.stroke();
+    }
+  }
+
   const footerTop = gridTop + puzzle.size * CELL + 16;
 
-  ctx.fillStyle = mutedColor;
-  ctx.font = `15px 'Cairo', 'Arial', sans-serif`;
   ctx.textAlign = "right";
   ctx.textBaseline = "top";
-  ctx.fillText(
-    `كلمة السر: ( ${toArabicNumeral(puzzle.secretWord.length)} أحرف )`,
-    W - MARGIN,
-    footerTop,
-  );
+
+  if (showSolution) {
+    ctx.fillStyle = primaryColor;
+    ctx.font = `bold 16px 'Cairo', 'Arial', sans-serif`;
+    ctx.fillText(`كلمة السر هي: ${puzzle.secretWord}`, W - MARGIN, footerTop);
+  } else {
+    ctx.fillStyle = mutedColor;
+    ctx.font = `15px 'Cairo', 'Arial', sans-serif`;
+    ctx.fillText(
+      `كلمة السر: ( ${toArabicNumeral(puzzle.secretWord.length)} أحرف )`,
+      W - MARGIN,
+      footerTop,
+    );
+  }
 
   const wordLabel = "الكلمات المخفية: ";
   const words = puzzle.usedWords.join(" ، ");

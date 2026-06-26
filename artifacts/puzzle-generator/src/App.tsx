@@ -90,7 +90,9 @@ function App() {
                 }}
                 data-testid={`cell-${r}-${c}`}
               >
-                {cell}
+                <span style={{ textDecoration: isSecret ? "line-through" : "none", textDecorationThickness: "1.5px", textDecorationColor: "#64748b" }}>
+                  {cell}
+                </span>
               </div>
             );
           })
@@ -108,7 +110,12 @@ function App() {
             {gameState.formValues.title || "لغز البحث عن الكلمات"}
           </h2>
           {gameState.showSolution && (
-            <p className="text-base text-muted-foreground">(ورقة الحل)</p>
+            <>
+              <p className="text-base text-muted-foreground">(ورقة الحل)</p>
+              <p className="mt-2 text-lg font-bold text-primary">
+                كلمة السر هي: <span className="text-foreground">{puzzle.secretWord}</span>
+              </p>
+            </>
           )}
         </div>
 
