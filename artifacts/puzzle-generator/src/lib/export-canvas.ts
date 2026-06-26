@@ -71,6 +71,7 @@ function drawPuzzle(
   showSolution: boolean,
   showHighlights: boolean,
   scale: number,
+  hint = "",
 ) {
   const W = canvasWidth(puzzle.size);
   const H = canvasHeight(puzzle.size);
@@ -172,13 +173,11 @@ function drawPuzzle(
     ctx.font = `bold 16px 'Cairo', 'Arial', sans-serif`;
     ctx.fillText(`كلمة السر هي: ${puzzle.secretWord}`, W - MARGIN, footerTop);
   } else {
+    const secretLabel = `كلمة السر: ( ${toArabicNumeral(puzzle.secretWord.length)} أحرف )`;
+    const hintText = hint ? `  —  ${hint}` : "";
     ctx.fillStyle = mutedColor;
     ctx.font = `15px 'Cairo', 'Arial', sans-serif`;
-    ctx.fillText(
-      `كلمة السر: ( ${toArabicNumeral(puzzle.secretWord.length)} أحرف )`,
-      W - MARGIN,
-      footerTop,
-    );
+    ctx.fillText(secretLabel + hintText, W - MARGIN, footerTop, W - MARGIN * 2);
   }
 
   const wordLabel = "الكلمات المخفية: ";
@@ -195,6 +194,7 @@ export async function buildCanvas(
   showSolution: boolean,
   showHighlights: boolean,
   scale = 2,
+  hint = "",
 ): Promise<HTMLCanvasElement> {
   const W = canvasWidth(puzzle.size);
   const H = canvasHeight(puzzle.size);
@@ -206,7 +206,7 @@ export async function buildCanvas(
 
   await document.fonts.ready;
 
-  drawPuzzle(ctx, puzzle, title, showSolution, showHighlights, scale);
+  drawPuzzle(ctx, puzzle, title, showSolution, showHighlights, scale, hint);
 
   return canvas;
 }
@@ -217,8 +217,9 @@ export async function exportPng(
   showSolution: boolean,
   showHighlights: boolean,
   filename: string,
+  hint = "",
 ) {
-  const canvas = await buildCanvas(puzzle, title, showSolution, showHighlights);
+  const canvas = await buildCanvas(puzzle, title, showSolution, showHighlights, 2, hint);
   const link = document.createElement("a");
   link.download = filename;
   link.href = canvas.toDataURL("image/png");
@@ -229,8 +230,9 @@ export async function exportPdf(
   puzzle: PuzzleState,
   title: string,
   showHighlights: boolean,
+  hint = "",
 ) {
-  const puzzleCanvas = await buildCanvas(puzzle, title, false, showHighlights);
+  const puzzleCanvas = await buildCanvas(puzzle, title, false, showHighlights, 2, hint);
   const solutionCanvas = await buildCanvas(puzzle, title, true, true);
 
   const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: "a4" });

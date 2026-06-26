@@ -27,7 +27,7 @@ function buildCellColorMap(puzzle: PuzzleState): Map<string, string> {
 
 function App() {
   const [gameState, setGameState] = useState<{
-    formValues: { size: number; title: string; words: string; secretWord: string };
+    formValues: { size: number; title: string; words: string; secretWord: string; hint: string };
     puzzle: PuzzleState | null;
     showSolution: boolean;
   }>({
@@ -36,6 +36,7 @@ function App() {
       title: "الحيوانات",
       words: "أسد، نمر، فيل، زرافة، قرد، غزال، دب",
       secretWord: "حيوان",
+      hint: "",
     },
     puzzle: null,
     showSolution: false,
@@ -124,11 +125,18 @@ function App() {
         </div>
 
         <div className="mt-6 bg-muted/30 p-5 rounded-lg border border-border space-y-4">
-          <div className="flex items-center gap-2">
-            <KeyRound className="w-4 h-4 text-primary shrink-0" />
-            <h3 className="font-bold text-foreground">
-              كلمة السر: ({toArabicNumeral(puzzle.secretWord.length)} أحرف)
-            </h3>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-primary shrink-0" />
+              <h3 className="font-bold text-foreground">
+                كلمة السر: ({toArabicNumeral(puzzle.secretWord.length)} أحرف)
+              </h3>
+            </div>
+            {!gameState.showSolution && gameState.formValues.hint && (
+              <span className="text-muted-foreground text-sm italic">
+                — {gameState.formValues.hint}
+              </span>
+            )}
           </div>
 
           <div>
@@ -217,16 +225,29 @@ function App() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="secret" className="text-base font-semibold">كلمة السر (مخفية في الخلايا الفارغة)</Label>
-                <Input
-                  id="secret"
-                  value={gameState.formValues.secretWord}
-                  onChange={e => setGameState(prev => ({ ...prev, formValues: { ...prev.formValues, secretWord: e.target.value } }))}
-                  placeholder="أدخل كلمة السر..."
-                  className="h-12 text-lg"
-                  data-testid="input-secret"
-                />
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="secret" className="text-base font-semibold">كلمة السر (مخفية في الخلايا الفارغة)</Label>
+                  <Input
+                    id="secret"
+                    value={gameState.formValues.secretWord}
+                    onChange={e => setGameState(prev => ({ ...prev, formValues: { ...prev.formValues, secretWord: e.target.value } }))}
+                    placeholder="أدخل كلمة السر..."
+                    className="h-12 text-lg"
+                    data-testid="input-secret"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="hint" className="text-base font-semibold">لمحة عن كلمة السر <span className="text-muted-foreground font-normal text-sm">(اختياري)</span></Label>
+                  <Input
+                    id="hint"
+                    value={gameState.formValues.hint}
+                    onChange={e => setGameState(prev => ({ ...prev, formValues: { ...prev.formValues, hint: e.target.value } }))}
+                    placeholder="مثال: هي أكبر الحيوانات البرية"
+                    className="h-12 text-lg"
+                    data-testid="input-hint"
+                  />
+                </div>
               </div>
             </CardContent>
             <CardFooter className="pt-4 pb-8 flex justify-center">
@@ -278,7 +299,7 @@ function App() {
                 variant="outline"
                 size="lg"
                 className="gap-2 font-bold h-13"
-                onClick={() => exportPng(gameState.puzzle!, title, false, false, `لغز-${title.trim().replace(/\s+/g, "-")}.png`)}
+                onClick={() => exportPng(gameState.puzzle!, title, false, false, `لغز-${title.trim().replace(/\s+/g, "-")}.png`, gameState.formValues.hint)}
                 data-testid="button-export-png"
               >
                 <ImageDown className="w-5 h-5" />
@@ -297,7 +318,7 @@ function App() {
               <Button
                 size="lg"
                 className="gap-2 font-bold h-13"
-                onClick={() => exportPdf(gameState.puzzle!, title, false)}
+                onClick={() => exportPdf(gameState.puzzle!, title, false, gameState.formValues.hint)}
                 data-testid="button-export-pdf"
               >
                 <FileDown className="w-5 h-5" />
