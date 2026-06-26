@@ -1,0 +1,190 @@
+import random
+import arabic_reshaper
+from bidi.algorithm import get_display
+from PIL import Image, ImageDraw, ImageFont
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+import os
+
+# الأرقام العربية لتحويل عدد الأحرف
+ARABIC_NUMBERS = {'0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤', '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩'}
+ARABIC_ALPHABET = list("أبتثجحخدذرزسشصضطظعغفقكلمنهوي")
+
+class PasswordPuzzle:
+    def __init__(self, size=8):
+        self.size = size
+        self.grid = [[' ' for _ in range(size)] for _ in range(size)]
+        self.used_words = []
+        self.unused_words = []
+        self.secret_word = ""
+        self.secret_positions = []
+        
+    def place_word(self, word):
+        # محاولة وضع الكلمة أفقياً أو رأسياً
+        directions = [(0, 1), (1, 0)] # (row_dir, col_dir)
+        random.shuffle(directions)
+        
+        for _ in range(100): # محاولات عشوائية
+            d_row, d_col = random.choice(directions)
+            start_row = random.randint(0, self.size - 1)
+            start_col = random.randint(0, self.size - 1)
+            
+            # التحقق من أن الكلمة تتسع في هذا الاتجاه
+            if 0 <= start_row + d_row * (len(word) - 1) < self.size and \
+               0 <= start_col + d_col * (len(word) - 1) < self.size:
+                
+                can_place = True
+                for i, char in enumerate(word):
+                    r = start_row + i * d_row
+                    c = start_col + i * d_col
+                    if self.grid[r][c] != ' ' and self.grid[r][c] != char:
+                        can_place = False
+                        break
+                
+                if can_place:
+                    for i, char in enumerate(word):
+                        r = start_row + i * d_row
+                        c = start_col + i * d_col
+                        self.grid[r][c] = char
+                    return True
+        return False
+
+    def generate(self, words, secret_word):
+        self.secret_word = secret_word.replace(" ", "")
+        
+        for word in words:
+            clean_word = word.replace(" ", "")
+            if self.place_word(clean_word):
+                self.used_words.append(word)
+            else:
+                self.unused_words.append(word)
+                
+        # حساب المربعات الفارغة
+        empty_cells = [(r, c) for r in range(self.size) for c in range(self.size) if self.grid[r][c] == ' ']
+        return len(empty_cells)
+
+    def fill_remaining(self, empty_cells):
+        random.shuffle(empty_cells)
+        # توزيع حروف كلمة السر
+        for char in self.secret_word:
+            if empty_cells:
+                r, c = empty_cells.pop(0)
+                self.grid[r][c] = char
+                self.secret_positions.append((r, c))
+        
+        # ملء الباقي بحروف عشوائية
+        for r, c in empty_cells:
+            self.grid[r][c] = random.choice(ARABIC_ALPHABET)
+
+def render_arabic_text(text):
+    reshaped_text = arabic_reshaper.reshape(text)
+    return get_display(reshaped_text)
+
+def to_arabic_numeral(num):
+    return ''.join(ARABIC_NUMBERS.get(digit, digit) for digit in str(num))
+
+def export_to_image(puzzle, title, bg_template=None, output_name="puzzle.png", show_solution=False):
+    cell_size = 50
+    margin = 100
+    img_size = puzzle.size * cell_size + margin * 2
+    
+    if bg_template and os.path.exists(bg_template):
+        img = Image.open(bg_template).resize((img_size, img_size + 150))
+    else:
+        img = Image.new('RGB', (img_size, img_size + 150), color='white')
+        
+    draw = ImageDraw.Draw(img)
+    
+    # يجب توفير ملف خط عربي بصيغة ttf في نفس المجلد، مثلا: 'arial.ttf'
+    try:
+        font = ImageFont.truetype("arial.ttf", 30)
+        title_font = ImageFont.truetype("arial.ttf", 40)
+    except IOError:
+        font = ImageFont.load_default()
+        title_font = font
+
+    # كتابة العنوان
+    draw.text((margin, 20), render_arabic_text(title), font=title_font, fill='black')
+    
+    # رسم الشبكة
+    start_y = 100
+    for r in range(puzzle.size):
+        for c in range(puzzle.size):
+            x = margin + c * cell_size
+            y = start_y + r * cell_size
+            
+            # تظليل كلمة السر في صفحة الحل
+            if show_solution and (r, c) in puzzle.secret_positions:
+                draw.rectangle([x, y, x+cell_size, y+cell_size], fill="#FFFF99", outline="black")
+            else:
+                draw.rectangle([x, y, x+cell_size, y+cell_size], outline="black")
+                
+            char = puzzle.grid[r][c]
+            draw.text((x + 15, y + 5), render_arabic_text(char), font=font, fill='black')
+    
+    # كتابة عدد أحرف كلمة السر
+    secret_len = to_arabic_numeral(len(puzzle.secret_word))
+    secret_hint = f"( {secret_len} أحرف )"
+    draw.text((margin, start_y + puzzle.size * cell_size + 20), render_arabic_text(f"كلمة السر: {secret_hint}"), font=font, fill='black')
+
+    img.save(output_name)
+
+def generate_pdf_book(puzzles_data, filename="Puzzle_Book.pdf"):
+    c = canvas.Canvas(filename, pagesize=A4)
+    width, height = A4
+    
+    for data in puzzles_data:
+        # هنا نقوم بإدراج الصورة المولدة لكل لغز في صفحة
+        img_path = data['img']
+        c.drawImage(img_path, 50, height - 600, width=500, height=500)
+        c.showPage()
+    c.save()
+
+# --- واجهة التفاعل مع المستخدم ---
+def main():
+    print("=== مرحباً بك في منشئ ألغاز كلمة السر ===")
+    
+    # يمكن تحويل هذا الجزء إلى حلقة تكرارية لإنشاء كتاب كامل
+    size_input = input("اختر حجم الشبكة (اكتب 8 لـ 8×8 أو 10 لـ 10×10): ")
+    size = int(size_input) if size_input in ['8', '10'] else 8
+    
+    title = input("أدخل عنوان الموضوع: ")
+    words_input = input("أدخل الكلمات مفصولة بفاصلة (،): ")
+    words = [w.strip() for w in words_input.split('،') if w.strip()]
+    
+    secret_word = input("أدخل (كلمة السر) المخفية: ")
+    
+    puzzle = PasswordPuzzle(size)
+    empty_spaces = puzzle.generate(words, secret_word)
+    
+    print("\n--- تقرير الشبكة ---")
+    print(f"الكلمات المستخدمة: {', '.join(puzzle.used_words)}")
+    if puzzle.unused_words:
+        print(f"الكلمات التي لم يتسع لها المكان: {', '.join(puzzle.unused_words)}")
+        
+    secret_len = len(secret_word.replace(" ", ""))
+    if empty_spaces > secret_len:
+        print(f"\nتنبيه: يوجد {empty_spaces - secret_len} مربع فارغ إضافي في الشبكة.")
+        add_more = input("هل ترغب في إضافة كلمات أخرى قبل ملء الفراغات بحروف عشوائية؟ (نعم/لا): ")
+        if add_more == 'نعم':
+            extra_words_input = input("أدخل الكلمات الإضافية مفصولة بفاصلة: ")
+            extra_words = [w.strip() for w in extra_words_input.split('،') if w.strip()]
+            empty_spaces = puzzle.generate(extra_words, secret_word) # تحديث الشبكة
+
+    # حساب المربعات الفارغة المتبقية لملئها
+    empty_cells = [(r, c) for r in range(size) for c in range(size) if puzzle.grid[r][c] == ' ']
+    puzzle.fill_remaining(empty_cells)
+    
+    bg_choice = input("هل لديك تصميم خلفية مخصص؟ أدخل مسار الصورة (أو اضغط Enter لتجاهل ذلك): ")
+    bg_template = bg_choice if os.path.exists(bg_choice) else None
+    
+    # استخراج لغز اللاعب
+    export_to_image(puzzle, title, bg_template, output_name="puzzle_player.png", show_solution=False)
+    # استخراج صفحة الحل
+    export_to_image(puzzle, title, bg_template, output_name="puzzle_solution.png", show_solution=True)
+    
+    print("\nتم استخراج اللغز وصورة الحل بنجاح!")
+    print(f"عدد حروف كلمة السر: ( {to_arabic_numeral(secret_len)} أحرف )")
+
+if __name__ == "__main__":
+    main()
