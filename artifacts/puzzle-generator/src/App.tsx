@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { FileDown, ImageDown, ArrowRight, Grid3X3, BookOpen, KeyRound, Highlighter } from "lucide-react";
+import { FileDown, ImageDown, ArrowRight, Grid3X3, BookOpen, KeyRound } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 
 function buildCellColorMap(puzzle: PuzzleState): Map<string, string> {
@@ -30,7 +30,6 @@ function App() {
     formValues: { size: number; title: string; words: string; secretWord: string };
     puzzle: PuzzleState | null;
     showSolution: boolean;
-    showHighlights: boolean;
   }>({
     formValues: {
       size: 8,
@@ -40,7 +39,6 @@ function App() {
     },
     puzzle: null,
     showSolution: false,
-    showHighlights: false,
   });
 
   const handleGenerate = () => {
@@ -51,7 +49,7 @@ function App() {
       return;
     }
     const puzzle = generatePuzzle(size, wordsList, secretWord.trim());
-    setGameState(prev => ({ ...prev, puzzle, showSolution: false, showHighlights: false }));
+    setGameState(prev => ({ ...prev, puzzle, showSolution: false }));
   };
 
   const handleBack = () => {
@@ -73,7 +71,7 @@ function App() {
         {puzzle.grid.map((row, r) =>
           row.map((cell, c) => {
             const key = `${r}-${c}`;
-            const highlightColor = gameState.showHighlights ? cellColors.get(key) : undefined;
+            const highlightColor = gameState.showSolution ? cellColors.get(key) : undefined;
             const isSecret = gameState.showSolution && isSecretPos(r, c);
 
             return (
@@ -137,7 +135,7 @@ function App() {
                   key={i}
                   className="px-3 py-1 border border-border rounded-full text-sm font-medium"
                   style={{
-                    backgroundColor: gameState.showHighlights
+                    backgroundColor: gameState.showSolution
                       ? HIGHLIGHT_COLORS[i % HIGHLIGHT_COLORS.length].replace(/[\d.]+\)$/, "0.35)")
                       : undefined,
                   }}
@@ -244,27 +242,14 @@ function App() {
                 لغز جديد
               </Button>
 
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2 bg-muted/50 px-3 py-2 rounded-lg">
-                  <Highlighter className="w-4 h-4 text-yellow-500" />
-                  <Label htmlFor="show-highlights" className="font-semibold cursor-pointer select-none text-sm">تظليل الكلمات</Label>
-                  <Switch
-                    id="show-highlights"
-                    checked={gameState.showHighlights}
-                    onCheckedChange={v => setGameState(prev => ({ ...prev, showHighlights: v }))}
-                    data-testid="switch-highlights"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 bg-muted/50 px-3 py-2 rounded-lg">
-                  <Label htmlFor="show-solution" className="font-semibold cursor-pointer select-none text-sm">إظهار كلمة السر</Label>
-                  <Switch
-                    id="show-solution"
-                    checked={gameState.showSolution}
-                    onCheckedChange={v => setGameState(prev => ({ ...prev, showSolution: v }))}
-                    data-testid="switch-solution"
-                  />
-                </div>
+              <div className="flex items-center gap-2 bg-muted/50 px-3 py-2 rounded-lg">
+                <Label htmlFor="show-solution" className="font-semibold cursor-pointer select-none text-sm">إظهار الحل والتظليل</Label>
+                <Switch
+                  id="show-solution"
+                  checked={gameState.showSolution}
+                  onCheckedChange={v => setGameState(prev => ({ ...prev, showSolution: v }))}
+                  data-testid="switch-solution"
+                />
               </div>
             </div>
 
@@ -286,7 +271,7 @@ function App() {
                 variant="outline"
                 size="lg"
                 className="gap-2 font-bold h-13"
-                onClick={() => exportPng(gameState.puzzle!, title, false, gameState.showHighlights, `لغز-${title.trim().replace(/\s+/g, "-")}.png`)}
+                onClick={() => exportPng(gameState.puzzle!, title, false, false, `لغز-${title.trim().replace(/\s+/g, "-")}.png`)}
                 data-testid="button-export-png"
               >
                 <ImageDown className="w-5 h-5" />
@@ -305,7 +290,7 @@ function App() {
               <Button
                 size="lg"
                 className="gap-2 font-bold h-13"
-                onClick={() => exportPdf(gameState.puzzle!, title, gameState.showHighlights)}
+                onClick={() => exportPdf(gameState.puzzle!, title, false)}
                 data-testid="button-export-pdf"
               >
                 <FileDown className="w-5 h-5" />
