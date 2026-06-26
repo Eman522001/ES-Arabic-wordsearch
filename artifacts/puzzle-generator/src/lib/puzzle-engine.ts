@@ -12,6 +12,11 @@ export function toArabicNumeral(num: number): string {
     .join('');
 }
 
+export interface WordPlacement {
+  word: string;
+  positions: [number, number][];
+}
+
 export interface PuzzleState {
   size: number;
   grid: string[][];
@@ -19,6 +24,7 @@ export interface PuzzleState {
   unusedWords: string[];
   secretWord: string;
   secretPositions: [number, number][];
+  wordPlacements: WordPlacement[];
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -30,7 +36,11 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function placeWord(grid: string[][], word: string, size: number): boolean {
+function placeWord(
+  grid: string[][],
+  word: string,
+  size: number,
+): [number, number][] | null {
   const directions: [number, number][] = shuffle([[0, 1], [1, 0]]);
 
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -54,15 +64,17 @@ function placeWord(grid: string[][], word: string, size: number): boolean {
     }
 
     if (canPlace) {
+      const positions: [number, number][] = [];
       for (let i = 0; i < word.length; i++) {
         const r = startRow + i * dRow;
         const c = startCol + i * dCol;
         grid[r][c] = word[i];
+        positions.push([r, c]);
       }
-      return true;
+      return positions;
     }
   }
-  return false;
+  return null;
 }
 
 export function generatePuzzle(
@@ -76,12 +88,15 @@ export function generatePuzzle(
   );
   const usedWords: string[] = [];
   const unusedWords: string[] = [];
+  const wordPlacements: WordPlacement[] = [];
 
   for (const word of words) {
     const clean = word.replace(/\s/g, '');
     if (clean.length === 0) continue;
-    if (placeWord(grid, clean, size)) {
+    const positions = placeWord(grid, clean, size);
+    if (positions) {
       usedWords.push(word);
+      wordPlacements.push({ word, positions });
     } else {
       unusedWords.push(word);
     }
@@ -115,5 +130,6 @@ export function generatePuzzle(
     unusedWords,
     secretWord: cleanSecret,
     secretPositions,
+    wordPlacements,
   };
 }

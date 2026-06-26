@@ -5,7 +5,18 @@ import { toArabicNumeral } from "./puzzle-engine";
 const CELL = 52;
 const MARGIN = 60;
 const HEADER_H = 80;
-const FOOTER_H = 120;
+const FOOTER_H = 130;
+
+export const HIGHLIGHT_COLORS = [
+  "rgba(255,235,59,0.55)",   // yellow
+  "rgba(100,220,130,0.50)",  // green
+  "rgba(255,149,0,0.50)",    // orange
+  "rgba(120,210,255,0.55)",  // cyan
+  "rgba(255,105,180,0.45)",  // pink
+  "rgba(180,130,255,0.45)",  // purple
+  "rgba(200,255,60,0.50)",   // lime
+  "rgba(255,200,100,0.50)",  // peach
+];
 
 function canvasWidth(size: number) {
   return MARGIN * 2 + CELL * size;
@@ -15,11 +26,50 @@ function canvasHeight(size: number) {
   return HEADER_H + CELL * size + FOOTER_H;
 }
 
+function drawHighlighterStroke(
+  ctx: CanvasRenderingContext2D,
+  positions: [number, number][],
+  color: string,
+  gridTop: number,
+) {
+  if (positions.length === 0) return;
+
+  const isHorizontal = positions[0][0] === positions[positions.length - 1][0];
+  const padding = 4;
+
+  if (isHorizontal) {
+    const row = positions[0][0];
+    const minCol = Math.min(...positions.map(([, c]) => c));
+    const maxCol = Math.max(...positions.map(([, c]) => c));
+    const x = MARGIN + minCol * CELL + padding;
+    const y = gridTop + row * CELL + padding;
+    const w = (maxCol - minCol + 1) * CELL - padding * 2;
+    const h = CELL - padding * 2;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, h / 2);
+    ctx.fill();
+  } else {
+    const col = positions[0][1];
+    const minRow = Math.min(...positions.map(([r]) => r));
+    const maxRow = Math.max(...positions.map(([r]) => r));
+    const x = MARGIN + col * CELL + padding;
+    const y = gridTop + minRow * CELL + padding;
+    const w = CELL - padding * 2;
+    const h = (maxRow - minRow + 1) * CELL - padding * 2;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, w / 2);
+    ctx.fill();
+  }
+}
+
 function drawPuzzle(
   ctx: CanvasRenderingContext2D,
   puzzle: PuzzleState,
   title: string,
   showSolution: boolean,
+  showHighlights: boolean,
   scale: number,
 ) {
   const W = canvasWidth(puzzle.size);
@@ -31,7 +81,6 @@ function drawPuzzle(
   ctx.fillRect(0, 0, W, H);
 
   const primaryColor = "#1a7a6e";
-  const highlightColor = "#fef08a";
   const borderColor = "#cbd5e1";
   const textColor = "#1e293b";
   const mutedColor = "#64748b";
@@ -40,7 +89,7 @@ function drawPuzzle(
   ctx.fillRect(0, 0, W, 56);
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = `bold ${22 * scale > 24 ? 22 : 22}px 'Cairo', 'Arial', sans-serif`;
+  ctx.font = `bold 22px 'Cairo', 'Arial', sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(title || "لغز البحث عن الكلمات", W / 2, 28);
@@ -57,19 +106,40 @@ function drawPuzzle(
     for (let c = 0; c < puzzle.size; c++) {
       const x = MARGIN + c * CELL;
       const y = gridTop + r * CELL;
-
-      const isSecret =
-        showSolution &&
-        puzzle.secretPositions.some(([pr, pc]) => pr === r && pc === c);
-
-      ctx.fillStyle = isSecret ? highlightColor : "#f8fafc";
+      ctx.fillStyle = "#f8fafc";
       ctx.strokeStyle = borderColor;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.roundRect(x + 2, y + 2, CELL - 4, CELL - 4, 5);
       ctx.fill();
       ctx.stroke();
+    }
+  }
 
+  if (showHighlights && puzzle.wordPlacements) {
+    for (let i = 0; i < puzzle.wordPlacements.length; i++) {
+      const color = HIGHLIGHT_COLORS[i % HIGHLIGHT_COLORS.length];
+      drawHighlighterStroke(ctx, puzzle.wordPlacements[i].positions, color, gridTop);
+    }
+  }
+
+  if (showSolution && puzzle.secretPositions.length > 0) {
+    const padding = 4;
+    for (const [r, c] of puzzle.secretPositions) {
+      const x = MARGIN + c * CELL + padding;
+      const y = gridTop + r * CELL + padding;
+      const sz = CELL - padding * 2;
+      ctx.fillStyle = "rgba(255,235,59,0.7)";
+      ctx.beginPath();
+      ctx.roundRect(x, y, sz, sz, 6);
+      ctx.fill();
+    }
+  }
+
+  for (let r = 0; r < puzzle.size; r++) {
+    for (let c = 0; c < puzzle.size; c++) {
+      const x = MARGIN + c * CELL;
+      const y = gridTop + r * CELL;
       ctx.fillStyle = textColor;
       ctx.font = `bold ${Math.round(CELL * 0.44)}px 'Cairo', 'Arial', sans-serif`;
       ctx.textAlign = "center";
@@ -102,6 +172,7 @@ export async function buildCanvas(
   puzzle: PuzzleState,
   title: string,
   showSolution: boolean,
+  showHighlights: boolean,
   scale = 2,
 ): Promise<HTMLCanvasElement> {
   const W = canvasWidth(puzzle.size);
@@ -114,7 +185,7 @@ export async function buildCanvas(
 
   await document.fonts.ready;
 
-  drawPuzzle(ctx, puzzle, title, showSolution, scale);
+  drawPuzzle(ctx, puzzle, title, showSolution, showHighlights, scale);
 
   return canvas;
 }
@@ -123,18 +194,23 @@ export async function exportPng(
   puzzle: PuzzleState,
   title: string,
   showSolution: boolean,
+  showHighlights: boolean,
   filename: string,
 ) {
-  const canvas = await buildCanvas(puzzle, title, showSolution);
+  const canvas = await buildCanvas(puzzle, title, showSolution, showHighlights);
   const link = document.createElement("a");
   link.download = filename;
   link.href = canvas.toDataURL("image/png");
   link.click();
 }
 
-export async function exportPdf(puzzle: PuzzleState, title: string) {
-  const puzzleCanvas = await buildCanvas(puzzle, title, false);
-  const solutionCanvas = await buildCanvas(puzzle, title, true);
+export async function exportPdf(
+  puzzle: PuzzleState,
+  title: string,
+  showHighlights: boolean,
+) {
+  const puzzleCanvas = await buildCanvas(puzzle, title, false, showHighlights);
+  const solutionCanvas = await buildCanvas(puzzle, title, true, true);
 
   const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
