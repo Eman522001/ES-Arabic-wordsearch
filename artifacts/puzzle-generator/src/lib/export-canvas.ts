@@ -34,33 +34,45 @@ function drawHighlighterStroke(
 ) {
   if (positions.length === 0) return;
 
-  const isHorizontal = positions[0][0] === positions[positions.length - 1][0];
+  const first = positions[0];
+  const last = positions[positions.length - 1];
+  const isHorizontal = first[0] === last[0];
+  const isVertical = first[1] === last[1];
   const padding = 4;
 
+  ctx.fillStyle = color;
+
   if (isHorizontal) {
-    const row = positions[0][0];
+    const row = first[0];
     const minCol = Math.min(...positions.map(([, c]) => c));
     const maxCol = Math.max(...positions.map(([, c]) => c));
     const x = MARGIN + minCol * CELL + padding;
     const y = gridTop + row * CELL + padding;
     const w = (maxCol - minCol + 1) * CELL - padding * 2;
     const h = CELL - padding * 2;
-    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, h / 2);
     ctx.fill();
-  } else {
-    const col = positions[0][1];
+  } else if (isVertical) {
+    const col = first[1];
     const minRow = Math.min(...positions.map(([r]) => r));
     const maxRow = Math.max(...positions.map(([r]) => r));
     const x = MARGIN + col * CELL + padding;
     const y = gridTop + minRow * CELL + padding;
     const w = CELL - padding * 2;
     const h = (maxRow - minRow + 1) * CELL - padding * 2;
-    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, w / 2);
     ctx.fill();
+  } else {
+    for (const [r, c] of positions) {
+      const x = MARGIN + c * CELL + padding;
+      const y = gridTop + r * CELL + padding;
+      const sz = CELL - padding * 2;
+      ctx.beginPath();
+      ctx.roundRect(x, y, sz, sz, 6);
+      ctx.fill();
+    }
   }
 }
 

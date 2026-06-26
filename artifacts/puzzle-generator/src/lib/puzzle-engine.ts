@@ -36,15 +36,26 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+const ALL_DIRECTIONS: [number, number][] = [
+  [0, 1],   // أفقي يسار→يمين
+  [0, -1],  // أفقي يمين→يسار
+  [1, 0],   // رأسي أعلى→أسفل
+  [-1, 0],  // رأسي أسفل→أعلى
+  [1, 1],   // قطري ↘
+  [1, -1],  // قطري ↙
+  [-1, 1],  // قطري ↗
+  [-1, -1], // قطري ↖
+];
+
 function placeWord(
   grid: string[][],
   word: string,
   size: number,
 ): [number, number][] | null {
-  const directions: [number, number][] = shuffle([[0, 1], [1, 0]]);
+  const dirs = shuffle([...ALL_DIRECTIONS]);
 
-  for (let attempt = 0; attempt < 100; attempt++) {
-    const [dRow, dCol] = directions[Math.floor(Math.random() * directions.length)];
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const [dRow, dCol] = dirs[attempt % dirs.length];
     const startRow = Math.floor(Math.random() * size);
     const startCol = Math.floor(Math.random() * size);
 
@@ -57,7 +68,7 @@ function placeWord(
     for (let i = 0; i < word.length; i++) {
       const r = startRow + i * dRow;
       const c = startCol + i * dCol;
-      if (grid[r][c] !== ' ' && grid[r][c] !== word[i]) {
+      if (grid[r][c] !== ' ') {
         canPlace = false;
         break;
       }
