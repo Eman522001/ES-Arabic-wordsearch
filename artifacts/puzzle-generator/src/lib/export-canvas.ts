@@ -65,14 +65,22 @@ function drawHighlighterStroke(
     ctx.roundRect(x, y, w, h, w / 2);
     ctx.fill();
   } else {
-    for (const [r, c] of positions) {
-      const x = MARGIN + c * CELL + padding;
-      const y = gridTop + r * CELL + padding;
-      const sz = CELL - padding * 2;
-      ctx.beginPath();
-      ctx.roundRect(x, y, sz, sz, 6);
-      ctx.fill();
-    }
+    const cx0 = MARGIN + first[1] * CELL + CELL / 2;
+    const cy0 = gridTop + first[0] * CELL + CELL / 2;
+    const cx1 = MARGIN + last[1] * CELL + CELL / 2;
+    const cy1 = gridTop + last[0] * CELL + CELL / 2;
+    const midX = (cx0 + cx1) / 2;
+    const midY = (cy0 + cy1) / 2;
+    const angle = Math.atan2(cy1 - cy0, cx1 - cx0);
+    const pillLen = Math.sqrt((cx1 - cx0) ** 2 + (cy1 - cy0) ** 2) + CELL - padding * 2;
+    const pillH = CELL - padding * 2;
+    ctx.save();
+    ctx.translate(midX, midY);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.roundRect(-pillLen / 2, -pillH / 2, pillLen, pillH, pillH / 2);
+    ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -142,7 +150,7 @@ function drawPuzzle(
       const x = MARGIN + c * CELL + padding;
       const y = gridTop + r * CELL + padding;
       const sz = CELL - padding * 2;
-      ctx.fillStyle = "rgba(255,235,59,0.7)";
+      ctx.fillStyle = "rgba(180,180,180,0.6)";
       ctx.beginPath();
       ctx.roundRect(x, y, sz, sz, 6);
       ctx.fill();

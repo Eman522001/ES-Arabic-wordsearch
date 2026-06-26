@@ -81,7 +81,7 @@ function App() {
                 className="aspect-square flex items-center justify-center text-xl font-bold rounded-md border border-border/60 transition-all duration-200"
                 style={{
                   backgroundColor: isSecret
-                    ? "rgba(250,204,21,0.6)"
+                    ? "rgba(180,180,180,0.55)"
                     : highlightColor
                     ? highlightColor
                     : undefined,
