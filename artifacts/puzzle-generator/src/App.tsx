@@ -206,8 +206,9 @@ function App() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="8">8 × 8</SelectItem>
-                      <SelectItem value="10">10 × 10</SelectItem>
+                      {Array.from({ length: 19 }, (_, i) => i + 2).map(n => (
+                        <SelectItem key={n} value={n.toString()}>{n} × {n}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
