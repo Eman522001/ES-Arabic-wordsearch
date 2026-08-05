@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { generatePuzzle, toArabicNumeral, type PuzzleState } from "@/lib/puzzle-engine";
 import { exportPng, exportPdf, HIGHLIGHT_COLORS } from "@/lib/export-canvas";
+import { exportBookAdults, exportBookKids } from "@/lib/export-book";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { FileDown, ImageDown, ArrowRight, Grid3X3, BookOpen, KeyRound } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { FileDown, ImageDown, ArrowRight, Grid3X3, BookOpen, KeyRound, BookOpenCheck, BookMarked } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 
 function buildCellColorMap(puzzle: PuzzleState): Map<string, string> {
@@ -27,7 +35,14 @@ function buildCellColorMap(puzzle: PuzzleState): Map<string, string> {
 
 function App() {
   const [gameState, setGameState] = useState<{
-    formValues: { size: number; title: string; words: string; secretWord: string; hint: string };
+    formValues: {
+      size: number;
+      title: string;
+      words: string;
+      secretWord: string;
+      hint: string;
+      pageNumber: number;
+    };
     puzzle: PuzzleState | null;
     showSolution: boolean;
   }>({
@@ -37,10 +52,14 @@ function App() {
       words: "أسد، نمر، فيل، زرافة، قرد، غزال، دب",
       secretWord: "حيوان",
       hint: "",
+      pageNumber: 1,
     },
     puzzle: null,
     showSolution: false,
   });
+
+  // State for kids color picker dialog
+  const [kidsColorDialog, setKidsColorDialog] = useState(false);
 
   const handleGenerate = () => {
     const { size, words, secretWord } = gameState.formValues;
@@ -165,7 +184,11 @@ function App() {
     );
   };
 
-  const title = gameState.formValues.title;
+  const { title, hint, pageNumber } = gameState.formValues;
+  const puzzle = gameState.puzzle;
+
+  const safeFilename = (prefix: string) =>
+    `${prefix}-${title.trim().replace(/\s+/g, "-") || "لغز"}`;
 
   return (
     <div className="min-h-[100dvh] bg-background font-sans text-foreground" dir="rtl">
@@ -184,7 +207,7 @@ function App() {
               <CardDescription className="text-base">قم بإدخال الكلمات وكلمة السر لإنشاء لغز جديد</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 mt-4">
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="title" className="text-base font-semibold">عنوان الموضوع</Label>
                   <Input
@@ -211,6 +234,19 @@ function App() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pagenum" className="text-base font-semibold">رقم الصفحة</Label>
+                  <Input
+                    id="pagenum"
+                    type="number"
+                    min={1}
+                    max={999}
+                    value={gameState.formValues.pageNumber}
+                    onChange={e => setGameState(prev => ({ ...prev, formValues: { ...prev.formValues, pageNumber: Math.max(1, parseInt(e.target.value) || 1) } }))}
+                    className="h-12 text-lg"
+                    data-testid="input-pagenum"
+                  />
                 </div>
               </div>
 
@@ -295,41 +331,134 @@ function App() {
               {renderPrintableView()}
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-center gap-3">
-              <Button
-                variant="outline"
-                size="lg"
-                className="gap-2 font-bold h-13"
-                onClick={() => exportPng(gameState.puzzle!, title, false, false, `لغز-${title.trim().replace(/\s+/g, "-")}.png`, gameState.formValues.hint)}
-                data-testid="button-export-png"
-              >
-                <ImageDown className="w-5 h-5" />
-                تحميل اللغز PNG
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="gap-2 font-bold h-13"
-                onClick={() => exportPng(gameState.puzzle!, title, true, true, `حل-${title.trim().replace(/\s+/g, "-")}.png`)}
-                data-testid="button-export-solution-png"
-              >
-                <ImageDown className="w-5 h-5" />
-                تحميل الحل PNG
-              </Button>
-              <Button
-                size="lg"
-                className="gap-2 font-bold h-13"
-                onClick={() => exportPdf(gameState.puzzle!, title, false, gameState.formValues.hint)}
-                data-testid="button-export-pdf"
-              >
-                <FileDown className="w-5 h-5" />
-                تحميل PDF (لغز + حل)
-              </Button>
+            {/* ── Default design buttons ── */}
+            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <p className="text-sm font-semibold text-muted-foreground text-center">التصميم الافتراضي</p>
+              <div className="flex flex-col sm:flex-row justify-center gap-3">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="gap-2 font-bold"
+                  onClick={() => exportPng(puzzle!, title, false, false, `${safeFilename("لغز")}.png`, hint)}
+                  data-testid="button-export-png"
+                >
+                  <ImageDown className="w-5 h-5" />
+                  تحميل اللغز PNG
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="gap-2 font-bold"
+                  onClick={() => exportPng(puzzle!, title, true, true, `${safeFilename("حل")}.png`)}
+                  data-testid="button-export-solution-png"
+                >
+                  <ImageDown className="w-5 h-5" />
+                  تحميل الحل PNG
+                </Button>
+                <Button
+                  size="lg"
+                  className="gap-2 font-bold"
+                  onClick={() => exportPdf(puzzle!, title, false, hint)}
+                  data-testid="button-export-pdf"
+                >
+                  <FileDown className="w-5 h-5" />
+                  تحميل PDF (لغز + حل)
+                </Button>
+              </div>
+            </div>
+
+            {/* ── Book design buttons ── */}
+            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <p className="text-sm font-semibold text-muted-foreground text-center">تصميم الكتاب</p>
+              <div className="flex flex-col sm:flex-row justify-center gap-3">
+                {/* Adults book */}
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="gap-2 font-bold border-violet-400 text-violet-700 hover:bg-violet-50"
+                  onClick={() =>
+                    exportBookAdults(
+                      puzzle!,
+                      title,
+                      hint,
+                      pageNumber,
+                      `${safeFilename("كتاب-كبار")}.png`,
+                    )
+                  }
+                  data-testid="button-export-book-adults"
+                >
+                  <BookOpenCheck className="w-5 h-5" />
+                  تحميل بتصميم كتاب البالغين
+                </Button>
+
+                {/* Kids book – asks color first */}
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="gap-2 font-bold border-pink-400 text-pink-700 hover:bg-pink-50"
+                  onClick={() => setKidsColorDialog(true)}
+                  data-testid="button-export-book-kids"
+                >
+                  <BookMarked className="w-5 h-5" />
+                  تحميل بتصميم كتاب الأطفال
+                </Button>
+              </div>
             </div>
 
           </div>
         )}
       </main>
+
+      {/* ── Kids color picker dialog ── */}
+      <Dialog open={kidsColorDialog} onOpenChange={setKidsColorDialog}>
+        <DialogContent className="sm:max-w-sm" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">اختر لون الكتاب</DialogTitle>
+            <DialogDescription>
+              اختر لون تصميم كتاب الأطفال
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-4 justify-center py-4">
+            <Button
+              size="lg"
+              className="gap-2 font-bold flex-1"
+              style={{ background: "linear-gradient(135deg,#f9a8d4,#ec4899)", color: "#fff", border: "none" }}
+              onClick={() => {
+                setKidsColorDialog(false);
+                exportBookKids(
+                  puzzle!,
+                  title,
+                  hint,
+                  pageNumber,
+                  "pink",
+                  `${safeFilename("كتاب-أطفال-وردي")}.png`,
+                );
+              }}
+            >
+              🌸 وردي
+            </Button>
+            <Button
+              size="lg"
+              className="gap-2 font-bold flex-1"
+              style={{ background: "linear-gradient(135deg,#bfdbfe,#3b82f6)", color: "#fff", border: "none" }}
+              onClick={() => {
+                setKidsColorDialog(false);
+                exportBookKids(
+                  puzzle!,
+                  title,
+                  hint,
+                  pageNumber,
+                  "blue",
+                  `${safeFilename("كتاب-أطفال-أزرق")}.png`,
+                );
+              }}
+            >
+              💙 أزرق
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Toaster />
     </div>
   );
