@@ -72,6 +72,43 @@ function drawImagePlaceholder(
   ctx.stroke();
 }
 
+function drawPhoto(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+) {
+  const scale = Math.max(w / image.naturalWidth, h / image.naturalHeight);
+  const cropW = w / scale;
+  const cropH = h / scale;
+  const cropX = (image.naturalWidth - cropW) / 2;
+  const cropY = (image.naturalHeight - cropH) / 2;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 6);
+  ctx.clip();
+  ctx.drawImage(image, cropX, cropY, cropW, cropH, x, y, w, h);
+  ctx.restore();
+
+  ctx.strokeStyle = "#94a3b8";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 6);
+  ctx.stroke();
+}
+
+async function loadImage(dataUrl?: string): Promise<HTMLImageElement | null> {
+  if (!dataUrl) return null;
+
+  const image = new Image();
+  image.src = dataUrl;
+  await image.decode();
+  return image;
+}
+
 // ─── ADULTS DESIGN ────────────────────────────────────────────────────────────
 
 function drawAdultsPage(
@@ -80,6 +117,7 @@ function drawAdultsPage(
   title: string,
   hint: string,
   pageNum: number,
+  image: HTMLImageElement | null,
 ) {
   const W = PAGE_W;
   const H = PAGE_H;
@@ -182,7 +220,11 @@ function drawAdultsPage(
   // Image placeholder (left side)
   const imgW = 130;
   const imgH = Math.min(100, stripY - footerY - 8);
-  drawImagePlaceholder(ctx, PAD + 12, footerY, imgW, imgH);
+  if (image) {
+    drawPhoto(ctx, image, PAD + 12, footerY, imgW, imgH);
+  } else {
+    drawImagePlaceholder(ctx, PAD + 12, footerY, imgW, imgH);
+  }
 
   // "كلمة السر" heading
   const rightX = W - PAD - 12;
@@ -226,6 +268,7 @@ export async function exportBookAdults(
   hint: string,
   pageNum: number,
   filename: string,
+  imageDataUrl?: string,
 ) {
   const canvas = document.createElement("canvas");
   canvas.width = PAGE_W * 2;
@@ -233,7 +276,8 @@ export async function exportBookAdults(
   const ctx = canvas.getContext("2d")!;
   ctx.scale(2, 2);
   await document.fonts.ready;
-  drawAdultsPage(ctx, puzzle, title, hint, pageNum);
+  const image = await loadImage(imageDataUrl);
+  drawAdultsPage(ctx, puzzle, title, hint, pageNum, image);
   const link = document.createElement("a");
   link.download = filename;
   link.href = canvas.toDataURL("image/png");
@@ -407,6 +451,7 @@ function drawKidsPage(
   hint: string,
   pageNum: number,
   variant: "pink" | "blue",
+  image: HTMLImageElement | null,
 ) {
   const W = PAGE_W;
   const H = PAGE_H;
@@ -511,7 +556,11 @@ function drawKidsPage(
   // Image placeholder (left)
   const imgSize = 80;
   const imgX = BORD + 14;
-  drawImagePlaceholder(ctx, imgX, footerY, imgSize, imgSize);
+  if (image) {
+    drawPhoto(ctx, image, imgX, footerY, imgSize, imgSize);
+  } else {
+    drawImagePlaceholder(ctx, imgX, footerY, imgSize, imgSize);
+  }
 
   // "كلمة السر"
   const rightX = W - BORD - 14;
@@ -555,6 +604,7 @@ export async function exportBookKids(
   pageNum: number,
   variant: "pink" | "blue",
   filename: string,
+  imageDataUrl?: string,
 ) {
   const canvas = document.createElement("canvas");
   canvas.width = PAGE_W * 2;
@@ -562,7 +612,8 @@ export async function exportBookKids(
   const ctx = canvas.getContext("2d")!;
   ctx.scale(2, 2);
   await document.fonts.ready;
-  drawKidsPage(ctx, puzzle, title, hint, pageNum, variant);
+  const image = await loadImage(imageDataUrl);
+  drawKidsPage(ctx, puzzle, title, hint, pageNum, variant, image);
   const link = document.createElement("a");
   link.download = filename;
   link.href = canvas.toDataURL("image/png");

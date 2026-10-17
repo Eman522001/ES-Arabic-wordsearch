@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { generatePuzzle, toArabicNumeral, type PuzzleState } from "@/lib/puzzle-engine";
 import { exportPng, exportPdf, HIGHLIGHT_COLORS } from "@/lib/export-canvas";
 import { exportBookAdults, exportBookKids } from "@/lib/export-book";
@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileDown, ImageDown, ArrowRight, Grid3X3, BookOpen, KeyRound, BookOpenCheck, BookMarked } from "lucide-react";
+import { FileDown, ImageDown, ArrowRight, Grid3X3, BookOpen, KeyRound, BookOpenCheck, BookMarked, ImagePlus, X } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 
 function buildCellColorMap(puzzle: PuzzleState): Map<string, string> {
@@ -42,6 +42,8 @@ function App() {
       secretWord: string;
       hint: string;
       pageNumber: number;
+      imageDataUrl: string;
+      imageName: string;
     };
     puzzle: PuzzleState | null;
     showSolution: boolean;
@@ -53,6 +55,8 @@ function App() {
       secretWord: "حيوان",
       hint: "",
       pageNumber: 1,
+      imageDataUrl: "",
+      imageName: "",
     },
     puzzle: null,
     showSolution: false,
@@ -60,6 +64,49 @@ function App() {
 
   // State for kids color picker dialog
   const [kidsColorDialog, setKidsColorDialog] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      alert("يرجى اختيار صورة بصيغة PNG أو JPG أو WebP");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert("حجم الصورة كبير. الحد الأقصى هو 10 ميغابايت");
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        alert("تعذر قراءة الصورة. يرجى اختيار ملف آخر");
+        return;
+      }
+      setGameState(prev => ({
+        ...prev,
+        formValues: {
+          ...prev.formValues,
+          imageDataUrl: reader.result as string,
+          imageName: file.name,
+        },
+      }));
+    };
+    reader.onerror = () => alert("تعذر قراءة الصورة. يرجى اختيار ملف آخر");
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setGameState(prev => ({
+      ...prev,
+      formValues: { ...prev.formValues, imageDataUrl: "", imageName: "" },
+    }));
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
 
   const handleGenerate = () => {
     const { size, words, secretWord } = gameState.formValues;
@@ -286,6 +333,52 @@ function App() {
                   />
                 </div>
               </div>
+
+              <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+                <div className="space-y-1">
+                  <Label htmlFor="puzzle-image" className="text-base font-semibold flex items-center gap-2">
+                    <ImagePlus className="h-4 w-4 text-primary" />
+                    صورة مناسبة للغز <span className="text-sm font-normal text-muted-foreground">(اختياري)</span>
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    ستظهر الصورة في المكان المخصص لها عند تحميل تصميم الكتاب. إذا لم ترفع صورة، سيظهر إطار فارغ.
+                  </p>
+                </div>
+                <Input
+                  ref={imageInputRef}
+                  id="puzzle-image"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleImageChange}
+                  className="sr-only"
+                  data-testid="input-puzzle-image"
+                />
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button type="button" variant="outline" className="gap-2" onClick={() => imageInputRef.current?.click()}>
+                    <ImagePlus className="h-4 w-4" />
+                    اختيار صورة
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {gameState.formValues.imageName || "لم يتم اختيار صورة"}
+                  </span>
+                </div>
+                {gameState.formValues.imageDataUrl && (
+                  <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-background p-3">
+                    <img
+                      src={gameState.formValues.imageDataUrl}
+                      alt="معاينة الصورة المختارة"
+                      className="h-20 w-20 rounded-md border border-border object-cover"
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium" title={gameState.formValues.imageName}>
+                      {gameState.formValues.imageName}
+                    </span>
+                    <Button type="button" variant="outline" size="sm" onClick={handleRemoveImage} className="gap-1">
+                      <X className="h-4 w-4" />
+                      إزالة الصورة
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardContent>
             <CardFooter className="pt-4 pb-8 flex justify-center">
               <Button
@@ -383,6 +476,7 @@ function App() {
                       hint,
                       pageNumber,
                       `${safeFilename("كتاب-كبار")}.png`,
+                      gameState.formValues.imageDataUrl || undefined,
                     )
                   }
                   data-testid="button-export-book-adults"
@@ -432,6 +526,7 @@ function App() {
                   pageNumber,
                   "pink",
                   `${safeFilename("كتاب-أطفال-وردي")}.png`,
+                  gameState.formValues.imageDataUrl || undefined,
                 );
               }}
             >
@@ -450,6 +545,7 @@ function App() {
                   pageNumber,
                   "blue",
                   `${safeFilename("كتاب-أطفال-أزرق")}.png`,
+                  gameState.formValues.imageDataUrl || undefined,
                 );
               }}
             >
